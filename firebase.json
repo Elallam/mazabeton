@@ -1,0 +1,31 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "mazabeton-2fefb",
+          "appId": "1:969191232674:android:492be723243ef20be4b3fb",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "mazabeton-2fefb",
+          "configurations": {
+            "android": "1:969191232674:android:492be723243ef20be4b3fb",
+            "ios": "1:969191232674:ios:923c26e3e6e72367e4b3fb",
+            "macos": "1:969191232674:ios:923c26e3e6e72367e4b3fb",
+            "web": "1:969191232674:web:2cb5ff52666c52f4e4b3fb",
+            "windows": "1:969191232674:web:13438e0391fa6004e4b3fb"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "eur3",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}
