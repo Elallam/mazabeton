@@ -45,7 +45,7 @@ class _DashboardBody extends ConsumerWidget {
       data: (orders) {
         final totalQte    = orders.fold<double>(0, (s, o) => s + o.qteDemande);
         final totalLivre  = orders.fold<double>(0, (s, o) => s + o.qteLivre);
-
+        final totalSupplement = orders.fold<double>(0, (s, o) => s + o.supplement);
         return Column(
           children: [
             // ── Header band ────────────────────────────────────────────
@@ -54,6 +54,7 @@ class _DashboardBody extends ConsumerWidget {
               orderCount: orders.length,
               totalQte: totalQte,
               totalLivre: totalLivre,
+              totalSupplement: totalSupplement,
               viewMode: viewMode,
             ),
 
@@ -82,6 +83,7 @@ class _HeaderBand extends ConsumerWidget {
   final int orderCount;
   final double totalQte;
   final double totalLivre;
+  final double totalSupplement;
   final DashboardViewMode viewMode;
 
   const _HeaderBand({
@@ -90,6 +92,7 @@ class _HeaderBand extends ConsumerWidget {
     required this.totalQte,
     required this.totalLivre,
     required this.viewMode,
+    required this.totalSupplement,
   });
 
   @override
@@ -728,11 +731,6 @@ class _UpdateOrderSheetState extends ConsumerState<_UpdateOrderSheet> {
   Future<void> _save() async {
     setState(() => _loading = true);
     try {
-      // Todo : check if the supplement is changed
-
-      // Todo : updated the requested quantity
-
-      // Todo : update the client solde when updating the qteLivre
 
       await ref.read(firestoreRepoProvider).updateOrder(
         widget.order.id,

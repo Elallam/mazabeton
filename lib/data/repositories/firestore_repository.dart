@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/models.dart';
 import '../../core/constants/app_constants.dart';
 
@@ -247,7 +248,7 @@ class FirestoreRepository {
       final plafond   = (data['plafond']     ?? 0).toDouble();
       final fake      = (data['plafondFake'] ?? 0).toDouble();
       final tolerance = plafond * _plafondTolerance;
-
+      print(data);
       if (fake + orderCost > plafond + tolerance) {
         throw PlafondException(
           message: 'Plafond dépassé (transaction).',
@@ -265,8 +266,8 @@ class FirestoreRepository {
         chantier: order.chantier,
         clientId: order.clientId,
         commercialId: order.commercialId,
-        contact: order.contact,
-        contactPhone: order.contactPhone,
+        contact: data['contactPhone'],
+        contactPhone: data['contactName'],
         createdAt: order.createdAt,
         deliveryDate: order.deliveryDate,
         qteDemande: order.qteDemande,
@@ -309,33 +310,53 @@ class FirestoreRepository {
       final clientSnap = await tx.get(clientRef);
       if (!clientSnap.exists) return;
 
-      final clientData      = clientSnap.data()!;
-      final plafond         = (clientData['plafond']          ?? 0).toDouble();
-      final currentFake     = (clientData['plafondFake']      ?? 0).toDouble();
-      // ignore: unused_local_variable
-      final currentDispo    = (clientData['plafondDisponible']?? 0).toDouble();
-      final tolerance       = plafond * _plafondTolerance;
+      final clientData   = clientSnap.data()!;
+      final plafond      = (clientData['plafond']           ?? 0).toDouble();
+      final currentFake  = (clientData['plafondFake']       ?? 0).toDouble();
+      final currentDispo = (clientData['plafondDisponible'] ?? 0).toDouble();
+      final tolerance    = plafond * _plafondTolerance;
 
-      final newStatus   = updates['status'] as String? ?? oldOrder.status;
-      final oldStatus   = oldOrder.status;
-      final prix        = oldOrder.betonPrice;
-      final oldQte      = oldOrder.qteDemande;
-      final newQteLivre = (updates['qteLivre'] as num?)?.toDouble() ?? oldOrder.qteLivre;
-      final oldQteLivre = oldOrder.qteLivre;
-      final oldCost     = oldQte * prix;
+      // ── Old values ────────────────────────────────────────────────────
+      final prix          = oldOrder.betonPrice;
+      final oldStatus     = oldOrder.status;
+      final oldQte        = oldOrder.qteDemande;
+      final oldQteLivre   = oldOrder.qteLivre;
+      final oldSupplement = oldOrder.supplement ?? 0.0;
+      final oldBaseQte    = oldQte - oldSupplement;
+
+      // ── New values (default to old → null means "not in this update") ─
+      final newStatus    = updates['status']     as String? ?? oldStatus;
+      final newQteLivre  = (updates['qteLivre']   as num?)?.toDouble() ?? oldQteLivre;
+      final newSupplement= (updates['supplement'] as num?)?.toDouble() ?? oldSupplement;
+
+      // ── Change flags ──────────────────────────────────────────────────
+      final statusChanged        = newStatus     != oldStatus;
+      final qteLivreChanged      = newQteLivre   != oldQteLivre;
+      final supplementChanged    = newSupplement != oldSupplement;
+
+      final becomingCanceled   = statusChanged && newStatus == AppConstants.statusCanceled;
+      final restoredFromCancel = statusChanged && oldStatus == AppConstants.statusCanceled;
+      final becomingDelivered  = statusChanged && newStatus == AppConstants.statusDelivered;
+      final leavingDelivered   = statusChanged && oldStatus == AppConstants.statusDelivered;
 
       double fakeDelta  = 0;
       double dispoDelta = 0;
 
-      // ── plafondFake adjustments ────────────────────────────────────────
-      final becomingCanceled  = newStatus == AppConstants.statusCanceled && oldStatus != AppConstants.statusCanceled;
-      final restoredFromCancel= oldStatus == AppConstants.statusCanceled && newStatus != AppConstants.statusCanceled;
-
+      // ══════════════════════════════════════════════════════════════════
+      // SCENARIO 3a : any → Canceled
+      // Release full commitment from fake, release consumed qty from dispo
+      // ══════════════════════════════════════════════════════════════════
       if (becomingCanceled) {
-        // Release commitment
-        fakeDelta = -oldCost;
-      } else if (restoredFromCancel) {
-        // Re-validate tolerance before re-adding
+        fakeDelta  = -(oldQte * prix);
+        dispoDelta = -(oldQteLivre * prix);
+      }
+
+      // ══════════════════════════════════════════════════════════════════
+      // SCENARIO 3b : Canceled → any
+      // Re-validate tolerance then restore both fake and dispo
+      // ══════════════════════════════════════════════════════════════════
+      else if (restoredFromCancel) {
+        final oldCost = oldQte * prix;
         if (currentFake + oldCost > plafond + tolerance) {
           throw PlafondException(
             message: 'Impossible de rouvrir : plafond dépassé.',
@@ -343,26 +364,68 @@ class FirestoreRepository {
             orderCost: oldCost, tolerance: tolerance,
           );
         }
-        fakeDelta = oldCost;
-      }
-
-      // ── plafondDisponible adjustments ──────────────────────────────────
-      final becomingDelivered = newStatus == AppConstants.statusDelivered && oldStatus != AppConstants.statusDelivered;
-      final wasAlreadyDelivered = oldStatus == AppConstants.statusDelivered && newStatus == AppConstants.statusDelivered;
-      final leavingDelivered    = oldStatus == AppConstants.statusDelivered && newStatus != AppConstants.statusDelivered;
-
-      if (becomingDelivered) {
-        // Charge settled balance for delivered quantity
-        dispoDelta = -(newQteLivre * prix);
-      } else if (wasAlreadyDelivered && newQteLivre != oldQteLivre) {
-        // Adjust for qty change on already-delivered order
-        dispoDelta = -((newQteLivre - oldQteLivre) * prix);
-      } else if (leavingDelivered) {
-        // Reverse previous charge when un-delivering
+        fakeDelta  = oldCost;
         dispoDelta = oldQteLivre * prix;
       }
 
-      // Apply updates
+      // ══════════════════════════════════════════════════════════════════
+      // SCENARIO 3c : any → Delivered
+      // Settle dispo to match the full committed amount.
+      // Also absorb any simultaneous qteLivre change.
+      // ══════════════════════════════════════════════════════════════════
+      else if (becomingDelivered) {
+        dispoDelta = (oldQte * prix);
+        if (qteLivreChanged) {
+          dispoDelta += ((newQteLivre - oldQteLivre) * prix);
+        }
+      }
+
+      // ══════════════════════════════════════════════════════════════════
+      // SCENARIO 3d : Delivered → any
+      // Reverse the delivery settlement, restore dispo
+      // ══════════════════════════════════════════════════════════════════
+      else if (leavingDelivered) {
+        dispoDelta = oldQteLivre * prix;
+      }
+
+      // ══════════════════════════════════════════════════════════════════
+      // NO status change
+      // ══════════════════════════════════════════════════════════════════
+      else {
+
+        // ── SCENARIO 2 : supplement changed (± with optional qteLivre) ──
+        if (supplementChanged) {
+          final suppDelta      = newSupplement - oldSupplement; // + or −
+          final supplementCost = suppDelta * prix;
+
+          // Only block when adding commitment, never when releasing
+          if (suppDelta > 0 && currentFake + supplementCost > plafond + tolerance) {
+            throw PlafondException(
+              message: 'Supplément refusé : plafond dépassé.',
+              plafond: plafond, plafondFake: currentFake,
+              orderCost: supplementCost, tolerance: tolerance,
+            );
+          }
+
+          // Adjust fake by delta (positive = commit more, negative = release)
+          fakeDelta = supplementCost;
+
+          // Rebuild qteDemande from base + new supplement (idempotent)
+          updates['qteDemande'] = oldBaseQte + newSupplement;
+
+          // Absorb simultaneous qteLivre change if present
+          if (qteLivreChanged) {
+            dispoDelta = -((newQteLivre - oldQteLivre) * prix);
+          }
+        }
+
+        // ── SCENARIO 1 : qteLivre only ──────────────────────────────────
+        else if (qteLivreChanged) {
+          dispoDelta = ((newQteLivre - oldQteLivre) * prix);
+        }
+      }
+
+      // ── Persist ───────────────────────────────────────────────────────
       tx.update(orderRef, updates);
       tx.set(histRef, {
         'oldData':        oldOrder.toMap(),
@@ -372,15 +435,13 @@ class FirestoreRepository {
         'modifiedAt':     FieldValue.serverTimestamp(),
       });
 
-      // Only write client if there is something to change
       if (fakeDelta != 0 || dispoDelta != 0) {
+        if (kDebugMode) {
+          print("fakeDelta : $fakeDelta and disponibleDelta is $dispoDelta");
+        }
         final clientUpdates = <String, dynamic>{};
-        if (fakeDelta != 0) {
-          clientUpdates['plafondFake'] = FieldValue.increment(fakeDelta);
-        }
-        if (dispoDelta != 0) {
-          clientUpdates['plafondDisponible'] = FieldValue.increment(dispoDelta);
-        }
+        if (fakeDelta  != 0) clientUpdates['plafondFake']       = FieldValue.increment(fakeDelta);
+        if (dispoDelta != 0) clientUpdates['plafondDisponible'] = FieldValue.increment(dispoDelta);
         tx.update(clientRef, clientUpdates);
       }
     });

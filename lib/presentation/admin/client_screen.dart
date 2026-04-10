@@ -1062,6 +1062,7 @@ class _BetonPriceConfigState extends ConsumerState<_BetonPriceConfig> {
                     value: _selectedBeton,
                     dropdownColor: AppColors.card,
                     isDense: true,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Béton',
                       prefixIcon: Icon(Icons.inventory_2_outlined, size: 18),
@@ -1069,7 +1070,11 @@ class _BetonPriceConfigState extends ConsumerState<_BetonPriceConfig> {
                     ),
                     items: available.map((b) => DropdownMenuItem(
                       value: b,
-                      child: Text(b.name, style: const TextStyle(fontSize: 13)),
+                      child: Text(
+                        b.name,
+                        style: const TextStyle(fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     )).toList(),
                     onChanged: (b) => setState(() => _selectedBeton = b),
                   ),
@@ -1089,11 +1094,12 @@ class _BetonPriceConfigState extends ConsumerState<_BetonPriceConfig> {
                 ),
                 const SizedBox(width: 8),
                 SizedBox(
+                  width: 44, // ✅ fixed width instead of height only
                   height: 44,
                   child: ElevatedButton(
                     onPressed: _saving ? null : _addBeton,
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      padding: EdgeInsets.zero, // ✅ remove internal padding eating space
                       minimumSize: Size.zero,
                     ),
                     child: _saving

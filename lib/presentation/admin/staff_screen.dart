@@ -120,8 +120,15 @@ class _StaffCard extends ConsumerWidget {
                     style: TextStyle(color: _roleColor, fontSize: 10, fontWeight: FontWeight.w600),
                   ),
                 ),
-                SizedBox(height: 2,),
-                phoneButton(staff.phone)
+                SizedBox(height: 4,),
+                GestureDetector(
+                  onTap: staff.phone.isNotEmpty ? () => callPhone(staff.phone) : null,
+                  child: _InfoChip(
+                    icon: Icons.phone_outlined,
+                    label: staff.phone,
+                    tappable: staff.phone.isNotEmpty,
+                  ),
+                ),
               ],
             ),
             PopupMenuButton<String>(
@@ -447,6 +454,46 @@ class _CreateEditStaffDialogState extends ConsumerState<_CreateEditStaffDialog> 
         prefixIcon: Icon(icon),
       ),
       validator: required ? (v) => v == null || v.isEmpty ? 'Requis' : null : null,
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool tappable;
+  const _InfoChip({required this.icon, required this.label, this.tappable = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: tappable
+            ? AppColors.statusDelivered.withOpacity(0.08)
+            : AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(8),
+        border: tappable
+            ? Border.all(color: AppColors.statusDelivered.withOpacity(0.25))
+            : null,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13,
+              color: tappable ? AppColors.statusDelivered : AppColors.textMuted),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    color: tappable ? AppColors.statusDelivered : AppColors.textSecondary,
+                    decoration: tappable ? TextDecoration.underline : null,
+                    decorationColor: AppColors.statusDelivered),
+                overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -99,12 +99,12 @@ class OrderDetailDialog extends StatelessWidget {
                 value: formatter.format(order.deliveryDate!),
                 icon: Icons.local_shipping_outlined,
               ),
-            _DetailRow(
-              label: 'Payé',
-              value: order.soldPaid ? 'Oui' : 'Non',
-              icon: Icons.payment_outlined,
-              valueColor: order.soldPaid ? AppColors.statusDelivered : AppColors.statusCanceled,
-            ),
+            // _DetailRow(
+            //   label: 'Payé',
+            //   value: order.soldPaid ? 'Oui' : 'Non',
+            //   icon: Icons.payment_outlined,
+            //   valueColor: order.soldPaid ? AppColors.statusDelivered : AppColors.statusCanceled,
+            // ),
           ],
         ),
       ),

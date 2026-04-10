@@ -24,7 +24,7 @@ class CommercialDesiredQuantity extends ConsumerWidget {
           loading: () => const AppLoading(),
           error: (e, _) => Center(child: Text('Erreur: $e')),
           data: (orders) {
-            final totalQte = orders.fold<double>(0, (s, o) => s + o.qteDemande + o.supplement);
+            final totalQte = orders.fold<double>(0, (s, o) => s + o.qteDemande);
             final totalLivre = orders.fold<double>(0, (s, o) => s + o.qteLivre);
             final remaining = totalQte - totalLivre;
 
@@ -96,7 +96,7 @@ class _OrderQuantityRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pct = order.qteDemande > 0
-        ? (order.qteLivre / (order.qteDemande + order.supplement)).clamp(0.0, 1.0)
+        ? (order.qteLivre / (order.qteDemande)).clamp(0.0, 1.0)
         : 0.0;
     final color = pct >= 1.0
         ? AppColors.statusDelivered
@@ -131,7 +131,7 @@ class _OrderQuantityRow extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${order.qteLivre}/${order.qteDemande + order.supplement} ton',
+                  '${order.qteLivre}/${order.qteDemande} ton',
                   style: TextStyle(
                     color: color,
                     fontWeight: FontWeight.w700,
