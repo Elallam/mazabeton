@@ -24,7 +24,7 @@ class OperatorShell extends ConsumerWidget {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.construction_rounded, color: AppColors.accent, size: 20),
+            // const Icon(Icons.construction_rounded, color: AppColors.accent, size: 20),
             const SizedBox(width: 8),
             const Text('MAZABETON'),
           ],

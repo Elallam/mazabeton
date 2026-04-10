@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
+import '../../data/repositories/firestore_repository.dart' show PlafondException;
 import '../../data/models/models.dart';
 
 class CreateOrderScreen extends ConsumerStatefulWidget {
@@ -26,27 +27,35 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
   final _qteCtrl = TextEditingController();
   bool _loading = false;
 
-  // ── Derived plafond values (recomputed on every setState) ──────────────────
-  double get _plafond => _client?.plafond ?? 0;
-  double get _solde => _client?.plafondDisponible ?? 0;   // already-used credit
-  double get _restPermis => _client?.plafondFake ?? 0;    // "rest permis" = plafondFake
+  // ── Derived plafond values ────────────────────────────────────────────────
+  //
+  // plafond          : hard ceiling (admin sets this)
+  // plafondFake      : total COMMITTED amount across all active orders
+  //                    we compare (plafondFake + orderCost) vs (plafond + 5% tolerance)
+  // plafondDisponible: settled balance, decremented only on delivery
+  // ─────────────────────────────────────────────────────────────────────────
 
-  double get _prixBeton => _bc?.prix ?? 0;
+  double get _plafond      => _client?.plafond          ?? 0;
+  double get _solde        => _client?.plafondDisponible ?? 0;  // settled balance
+  double get _restPermis   => _client?.plafondFake       ?? 0;  // already committed
 
-  /// qteDispo = plafondDisponible / prix (how many ton the client can still afford)
+  double get _tolerance    => _plafond * 0.05;                  // 5% tolerance
+  double get _prixBeton    => _bc?.prix ?? 0;
+  double get _qte          => double.tryParse(_qteCtrl.text) ?? 0;
+  double get _orderCost    => _qte * _prixBeton;
+
+  /// Available budget for new commitments = (plafond + tolerance) - plafondFake
+  double get _budgetRestant => (_plafond + _tolerance) - _restPermis;
+
+  /// Quantity the client can still commit to at the current béton price
   double get _qteDispo =>
-      (_prixBeton > 0 && _solde > 0) ? (_solde / _prixBeton) : 0;
+      (_prixBeton > 0 && _budgetRestant > 0) ? (_budgetRestant / _prixBeton) : 0;
 
-  double get _qte => double.tryParse(_qteCtrl.text) ?? 0;
-
-  /// Cost of this order
-  double get _orderCost => _qte * _prixBeton;
-
-  /// True when the order cost exceeds what the client has available
+  /// True when this order would push plafondFake over the ceiling
   bool get _exceedsPlafond =>
-      _client != null && _bc != null && _qte > 0 && _orderCost > _solde;
+      _client != null && _bc != null && _qte > 0 &&
+          (_restPermis + _orderCost) > (_plafond + _tolerance);
 
-  /// True when client is blocked
   bool get _clientBlocked => _client?.isBlocked ?? false;
 
   bool get _canSubmit =>
@@ -139,6 +148,12 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
       final commercial = await ref.read(currentCommercialProvider.future);
       if (commercial == null) throw Exception('Commercial introuvable');
 
+      // Server-side plafond check inside transaction (guards against race conditions)
+      await ref.read(firestoreRepoProvider).checkPlafondBeforeCreate(
+        clientId: _client!.id,
+        orderCost: _orderCost,
+      );
+
       final order = OrderModel(
         id: '',
         orderId: '',
@@ -167,6 +182,28 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
           backgroundColor: AppColors.statusDelivered,
         ));
         context.go('/commercial');
+      }
+    } on PlafondException catch (e) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            backgroundColor: AppColors.card,
+            title: const Row(children: [
+              Icon(Icons.block, color: AppColors.error, size: 20),
+              SizedBox(width: 10),
+              Text('Plafond dépassé'),
+            ]),
+            content: Text(e.message,
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -330,6 +367,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
                       restPermis: _restPermis,
                       prixBeton: _prixBeton,
                       qteDispo: _qteDispo,
+                      budgetRestant: _budgetRestant,
                     ),
 
                     const SizedBox(height: 28),
@@ -349,8 +387,11 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
                       _InlineBanner(
                         icon: Icons.money_off,
                         message:
-                        'Plafond insuffisant. Coût de la commande : ${_orderCost.toStringAsFixed(0)} DH — '
-                            'Disponible : ${_solde.toStringAsFixed(0)} DH.',
+                        'Plafond dépassé. '
+                            'Déjà engagé : ${_restPermis.toStringAsFixed(0)} DH + '
+                            'Cette commande : ${_orderCost.toStringAsFixed(0)} DH = '
+                            '${(_restPermis + _orderCost).toStringAsFixed(0)} DH '
+                            '> Plafond autorisé : ${(_plafond + _tolerance).toStringAsFixed(0)} DH.',
                         color: AppColors.error,
                       ),
                     ] else if (_bc != null && _qte > 0) ...[
@@ -358,7 +399,8 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: Text(
-                          'Coût : ${_orderCost.toStringAsFixed(0)} DH',
+                          'Coût : ${_orderCost.toStringAsFixed(0)} DH  •  '
+                              'Budget restant : ${_budgetRestant.toStringAsFixed(0)} DH',
                           style: const TextStyle(
                               color: AppColors.textMuted, fontSize: 12),
                         ),
@@ -454,14 +496,17 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
   }
 }
 
-// ── Info grid (Plafond / Solde / Rest Permis / Prix Béton / Qté dispo) ─────────
+// ── Info grid ────────────────────────────────────────────────────────────────
+// Row 1: Plafond (ceiling) / Solde disponible (settled) / Déjà engagé (fake)
+// Row 2: Prix Béton / Qté disponible / Budget restant
 
 class _InfoGrid extends StatelessWidget {
   final double plafond;
   final double solde;
-  final double restPermis;
+  final double restPermis;   // = plafondFake (committed)
   final double prixBeton;
   final double qteDispo;
+  final double budgetRestant;
 
   const _InfoGrid({
     required this.plafond,
@@ -469,10 +514,18 @@ class _InfoGrid extends StatelessWidget {
     required this.restPermis,
     required this.prixBeton,
     required this.qteDispo,
+    required this.budgetRestant,
   });
 
   @override
   Widget build(BuildContext context) {
+    final engagedPct = plafond > 0 ? (restPermis / plafond).clamp(0.0, 1.5) : 0.0;
+    final engagedColor = engagedPct > 0.95
+        ? AppColors.error
+        : engagedPct > 0.75
+        ? AppColors.warning
+        : AppColors.textSecondary;
+
     return Column(
       children: [
         Row(
@@ -481,7 +534,11 @@ class _InfoGrid extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(child: _InfoCell(label: 'Solde :', value: solde)),
             const SizedBox(width: 12),
-            Expanded(child: _InfoCell(label: 'Rest Permis :', value: restPermis)),
+            Expanded(child: _InfoCell(
+              label: 'Déjà engagé :',
+              value: restPermis,
+              valueColor: engagedColor,
+            )),
           ],
         ),
         const SizedBox(height: 16),
@@ -489,9 +546,18 @@ class _InfoGrid extends StatelessWidget {
           children: [
             Expanded(child: _InfoCell(label: 'Prix Béton :', value: prixBeton)),
             const SizedBox(width: 12),
-            Expanded(
-                child: _InfoCell(label: 'Quantité disponible :', value: qteDispo, unit: 'ton')),
-            const Expanded(child: SizedBox()), // spacer to keep symmetry with 3-col row
+            Expanded(child: _InfoCell(
+              label: 'Qté dispo :',
+              value: qteDispo,
+              unit: 'ton',
+              valueColor: qteDispo <= 0 ? AppColors.error : null,
+            )),
+            const SizedBox(width: 12),
+            Expanded(child: _InfoCell(
+              label: 'Budget restant :',
+              value: budgetRestant,
+              valueColor: budgetRestant <= 0 ? AppColors.error : AppColors.statusDelivered,
+            )),
           ],
         ),
       ],
@@ -503,8 +569,14 @@ class _InfoCell extends StatelessWidget {
   final String label;
   final double value;
   final String unit;
+  final Color? valueColor;
 
-  const _InfoCell({required this.label, required this.value, this.unit = ''});
+  const _InfoCell({
+    required this.label,
+    required this.value,
+    this.unit = '',
+    this.valueColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -519,8 +591,11 @@ class _InfoCell extends StatelessWidget {
           unit.isNotEmpty
               ? '${value.toStringAsFixed(1)} $unit'
               : value.toStringAsFixed(1),
-          style: const TextStyle(
-              color: AppColors.textSecondary, fontSize: 14, fontWeight: FontWeight.w500),
+          style: TextStyle(
+              color: valueColor ?? AppColors.textSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500),
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 4),
         const Divider(height: 1, thickness: 1, color: AppColors.divider),

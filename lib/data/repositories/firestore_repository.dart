@@ -2,6 +2,26 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/models.dart';
 import '../../core/constants/app_constants.dart';
 
+/// Thrown when an order would push plafondFake above the allowed ceiling.
+class PlafondException implements Exception {
+  final String message;
+  final double plafond;
+  final double plafondFake;
+  final double orderCost;
+  final double tolerance;
+
+  const PlafondException({
+    required this.message,
+    required this.plafond,
+    required this.plafondFake,
+    required this.orderCost,
+    required this.tolerance,
+  });
+
+  @override
+  String toString() => message;
+}
+
 class FirestoreRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
@@ -170,31 +190,110 @@ class FirestoreRepository {
         .map((s) => s.docs.map((d) => OrderModel.fromMap(d.data(), d.id)).toList());
   }
 
-  Future<String> createOrder(OrderModel order) async {
-    final ref = _db.collection(AppConstants.ordersCollection).doc();
-    final withId = OrderModel(
-      id: ref.id,
-      orderId: ref.id.substring(0, 8).toUpperCase(),
-      beton: order.beton,
-      betonId: order.betonId,
-      betonPrice: order.betonPrice,
-      chantier: order.chantier,
-      clientId: order.clientId,
-      commercialId: order.commercialId,
-      contact: order.contact,
-      contactPhone: order.contactPhone,
-      createdAt: order.createdAt,
-      deliveryDate: order.deliveryDate,
-      qteDemande: order.qteDemande,
-      qteLivre: order.qteLivre,
-      soldPaid: order.soldPaid,
-      status: order.status,
-      supplement: order.supplement,
-    );
-    await ref.set(withId.toMap());
-    return ref.id;
+  // ─────────────────────────────────────────────────────────────────────────
+  // PLAFOND LOGIC
+  //
+  // plafond          : hard ceiling — admin only, never touched here
+  // plafondFake      : committed amount (orders in-flight)
+  //                    += orderCost on CREATE
+  //                    -= orderCost on CANCEL (reversal)
+  //                    tolerance = 5 % of plafond (configurable below)
+  // plafondDisponible: settled real balance
+  //                    -= (qteLivre × prix) when status → delivered
+  //                    re-adjusted when qteLivre changes on an already-delivered order
+  // ─────────────────────────────────────────────────────────────────────────
+
+  static const double _plafondTolerance = 0.05; // 5 %
+
+  /// Throws a [PlafondException] if creating this order would push plafondFake
+  /// above plafond + tolerance.
+  Future<void> checkPlafondBeforeCreate({
+    required String clientId,
+    required double orderCost,
+  }) async {
+    final doc = await _db.collection(AppConstants.clientsCollection).doc(clientId).get();
+    if (!doc.exists) throw Exception('Client introuvable');
+    final data = doc.data()!;
+    final plafond    = (data['plafond']     ?? 0).toDouble();
+    final fake       = (data['plafondFake'] ?? 0).toDouble();
+    final tolerance  = plafond * _plafondTolerance;
+    final newFake    = fake + orderCost;
+    if (newFake > plafond + tolerance) {
+      throw PlafondException(
+        message: 'Plafond dépassé. '
+            'Engagé : ${fake.toStringAsFixed(0)} DH, '
+            'Commande : ${orderCost.toStringAsFixed(0)} DH, '
+            'Plafond max : ${(plafond + tolerance).toStringAsFixed(0)} DH.',
+        plafond: plafond,
+        plafondFake: fake,
+        orderCost: orderCost,
+        tolerance: tolerance,
+      );
+    }
   }
 
+  /// Create order + atomically update plafondFake.
+  Future<String> createOrder(OrderModel order) async {
+    final orderRef = _db.collection(AppConstants.ordersCollection).doc();
+    final clientRef = _db.collection(AppConstants.clientsCollection).doc(order.clientId);
+
+    final orderCost = order.qteDemande * order.betonPrice;
+
+    // Re-check inside transaction to avoid TOCTOU race
+    return _db.runTransaction<String>((tx) async {
+      final clientSnap = await tx.get(clientRef);
+      if (!clientSnap.exists) throw Exception('Client introuvable');
+      final data      = clientSnap.data()!;
+      final plafond   = (data['plafond']     ?? 0).toDouble();
+      final fake      = (data['plafondFake'] ?? 0).toDouble();
+      final tolerance = plafond * _plafondTolerance;
+
+      if (fake + orderCost > plafond + tolerance) {
+        throw PlafondException(
+          message: 'Plafond dépassé (transaction).',
+          plafond: plafond, plafondFake: fake,
+          orderCost: orderCost, tolerance: tolerance,
+        );
+      }
+
+      final withId = OrderModel(
+        id: orderRef.id,
+        orderId: orderRef.id.substring(0, 8).toUpperCase(),
+        beton: order.beton,
+        betonId: order.betonId,
+        betonPrice: order.betonPrice,
+        chantier: order.chantier,
+        clientId: order.clientId,
+        commercialId: order.commercialId,
+        contact: order.contact,
+        contactPhone: order.contactPhone,
+        createdAt: order.createdAt,
+        deliveryDate: order.deliveryDate,
+        qteDemande: order.qteDemande,
+        qteLivre: order.qteLivre,
+        soldPaid: order.soldPaid,
+        status: order.status,
+        supplement: order.supplement,
+      );
+
+      tx.set(orderRef, withId.toMap());
+      // Commit plafondFake increase
+      tx.update(clientRef, {
+        'plafondFake': FieldValue.increment(orderCost),
+      });
+
+      return orderRef.id;
+    });
+  }
+
+  /// Update order fields + atomically maintain plafondFake and plafondDisponible.
+  ///
+  /// Rules applied in a transaction:
+  ///   • If status changes TO canceled  → reverse plafondFake by old orderCost
+  ///   • If status changes FROM canceled → re-add plafondFake (re-opening)
+  ///   • If status changes TO delivered  → decrease plafondDisponible by new qteLivre × prix
+  ///   • If status was already delivered and qteLivre changed
+  ///       → adjust plafondDisponible by delta (newQte - oldQte) × prix
   Future<void> updateOrder(
       String orderId,
       Map<String, dynamic> updates,
@@ -202,27 +301,89 @@ class FirestoreRepository {
       String commercialId,
       String commercialName,
       ) async {
-    final batch = _db.batch();
+    final orderRef  = _db.collection(AppConstants.ordersCollection).doc(orderId);
+    final clientRef = _db.collection(AppConstants.clientsCollection).doc(oldOrder.clientId);
+    final histRef   = orderRef.collection(AppConstants.orderHistoryCollection).doc();
 
-    // Update order
-    final orderRef = _db.collection(AppConstants.ordersCollection).doc(orderId);
-    batch.update(orderRef, updates);
+    await _db.runTransaction((tx) async {
+      final clientSnap = await tx.get(clientRef);
+      if (!clientSnap.exists) return;
 
-    // Write history
-    final histRef = _db
-        .collection(AppConstants.ordersCollection)
-        .doc(orderId)
-        .collection(AppConstants.orderHistoryCollection)
-        .doc();
-    batch.set(histRef, {
-      'oldData': oldOrder.toMap(),
-      'newData': updates,
-      'commercialId': commercialId,
-      'commercialName': commercialName,
-      'modifiedAt': FieldValue.serverTimestamp(),
+      final clientData      = clientSnap.data()!;
+      final plafond         = (clientData['plafond']          ?? 0).toDouble();
+      final currentFake     = (clientData['plafondFake']      ?? 0).toDouble();
+      // ignore: unused_local_variable
+      final currentDispo    = (clientData['plafondDisponible']?? 0).toDouble();
+      final tolerance       = plafond * _plafondTolerance;
+
+      final newStatus   = updates['status'] as String? ?? oldOrder.status;
+      final oldStatus   = oldOrder.status;
+      final prix        = oldOrder.betonPrice;
+      final oldQte      = oldOrder.qteDemande;
+      final newQteLivre = (updates['qteLivre'] as num?)?.toDouble() ?? oldOrder.qteLivre;
+      final oldQteLivre = oldOrder.qteLivre;
+      final oldCost     = oldQte * prix;
+
+      double fakeDelta  = 0;
+      double dispoDelta = 0;
+
+      // ── plafondFake adjustments ────────────────────────────────────────
+      final becomingCanceled  = newStatus == AppConstants.statusCanceled && oldStatus != AppConstants.statusCanceled;
+      final restoredFromCancel= oldStatus == AppConstants.statusCanceled && newStatus != AppConstants.statusCanceled;
+
+      if (becomingCanceled) {
+        // Release commitment
+        fakeDelta = -oldCost;
+      } else if (restoredFromCancel) {
+        // Re-validate tolerance before re-adding
+        if (currentFake + oldCost > plafond + tolerance) {
+          throw PlafondException(
+            message: 'Impossible de rouvrir : plafond dépassé.',
+            plafond: plafond, plafondFake: currentFake,
+            orderCost: oldCost, tolerance: tolerance,
+          );
+        }
+        fakeDelta = oldCost;
+      }
+
+      // ── plafondDisponible adjustments ──────────────────────────────────
+      final becomingDelivered = newStatus == AppConstants.statusDelivered && oldStatus != AppConstants.statusDelivered;
+      final wasAlreadyDelivered = oldStatus == AppConstants.statusDelivered && newStatus == AppConstants.statusDelivered;
+      final leavingDelivered    = oldStatus == AppConstants.statusDelivered && newStatus != AppConstants.statusDelivered;
+
+      if (becomingDelivered) {
+        // Charge settled balance for delivered quantity
+        dispoDelta = -(newQteLivre * prix);
+      } else if (wasAlreadyDelivered && newQteLivre != oldQteLivre) {
+        // Adjust for qty change on already-delivered order
+        dispoDelta = -((newQteLivre - oldQteLivre) * prix);
+      } else if (leavingDelivered) {
+        // Reverse previous charge when un-delivering
+        dispoDelta = oldQteLivre * prix;
+      }
+
+      // Apply updates
+      tx.update(orderRef, updates);
+      tx.set(histRef, {
+        'oldData':        oldOrder.toMap(),
+        'newData':        updates,
+        'commercialId':   commercialId,
+        'commercialName': commercialName,
+        'modifiedAt':     FieldValue.serverTimestamp(),
+      });
+
+      // Only write client if there is something to change
+      if (fakeDelta != 0 || dispoDelta != 0) {
+        final clientUpdates = <String, dynamic>{};
+        if (fakeDelta != 0) {
+          clientUpdates['plafondFake'] = FieldValue.increment(fakeDelta);
+        }
+        if (dispoDelta != 0) {
+          clientUpdates['plafondDisponible'] = FieldValue.increment(dispoDelta);
+        }
+        tx.update(clientRef, clientUpdates);
+      }
     });
-
-    await batch.commit();
   }
 
   // ─── Desired Quantity (orderBeton) ──────────────────────────────────────────
@@ -274,9 +435,14 @@ class FirestoreRepository {
     await _db.collection(AppConstants.commercialsCollection).doc(id).update(data);
   }
 
+  Future<void> updateUserRole(String uid, String role) async {
+    await _db.collection(AppConstants.usersCollection).doc(uid).update({'role': role});
+  }
+
+  /// Safe delete: removes Firestore docs. Firebase Auth account must be deleted
+  /// via Firebase console or Cloud Functions (client SDK cannot delete other users).
   Future<void> deleteStaff(String id) async {
     final batch = _db.batch();
-    // Todo : update this delete to do a soft delete
     batch.delete(_db.collection(AppConstants.commercialsCollection).doc(id));
     batch.delete(_db.collection(AppConstants.usersCollection).doc(id));
     await batch.commit();

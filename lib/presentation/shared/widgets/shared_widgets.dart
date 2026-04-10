@@ -159,7 +159,7 @@ class OrderCard extends StatelessWidget {
                 Expanded(
                   child: _InfoChip(
                     icon: Icons.scale_outlined,
-                    label: '${order.qteDemande} m³',
+                    label: '${order.qteDemande} ton',
                     color: AppColors.accentGold,
                   ),
                 ),

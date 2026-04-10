@@ -5,6 +5,7 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/models.dart';
 import '../shared/widgets/shared_widgets.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ClientsScreen extends ConsumerStatefulWidget {
   const ClientsScreen({super.key});
@@ -100,12 +101,13 @@ class _ClientCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Bar shows committed (plafondFake) ratio vs plafond ceiling
     final plafondPct = client.plafond > 0
-        ? ((client.plafond - client.plafondDisponible) / client.plafond).clamp(0.0, 1.0)
+        ? (client.plafondFake / client.plafond).clamp(0.0, 1.1)
         : 0.0;
-    final barColor = plafondPct > 0.8
-        ? AppColors.error
-        : plafondPct > 0.5
+    final barColor = plafondPct > 1.0
+        ? AppColors.error      // over ceiling (within tolerance)
+        : plafondPct > 0.85
         ? AppColors.warning
         : AppColors.statusDelivered;
 
@@ -139,17 +141,9 @@ class _ClientCard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              client.contactName,
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                            ),
-                            SizedBox(width: 16,),
-                            //Todo : update the design.
-                            phoneButton(client.contactPhone),
-                          ],
+                        Text(
+                          client.fullName,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -193,20 +187,28 @@ class _ClientCard extends ConsumerWidget {
               // Info chips
               Row(
                 children: [
-                  _InfoChip(icon: Icons.phone_outlined, label: client.phone),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: client.phone.isNotEmpty ? () => callPhone(client.phone) : null,
+                      child: _InfoChip(icon: Icons.phone_outlined, label: client.phone, tappable: client.phone.isNotEmpty),
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  _InfoChip(icon: Icons.location_on_outlined, label: client.address.isNotEmpty ? client.address : '—'),
+                  Expanded(
+                    child: _InfoChip(icon: Icons.location_on_outlined, label: client.address.isNotEmpty ? client.address : '—'),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
 
-              // Plafond bar
+              // Plafond bar — shows committed vs ceiling
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Plafond', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                  const Text('Engagé / Plafond',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                   Text(
-                    '${client.plafondDisponible.toStringAsFixed(0)} / ${client.plafond.toStringAsFixed(0)} DH',
+                    '${client.plafondFake.toStringAsFixed(0)} / ${client.plafond.toStringAsFixed(0)} DH',
                     style: TextStyle(
                       color: barColor,
                       fontWeight: FontWeight.w600,
@@ -355,11 +357,29 @@ class _ClientDetailSheet extends ConsumerWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _StatBox(label: 'Plafond total', value: '${client.plafond.toStringAsFixed(0)} DH', color: AppColors.accent)),
-              const SizedBox(width: 10),
-              Expanded(child: _StatBox(label: 'Disponible', value: '${client.plafondDisponible.toStringAsFixed(0)} DH', color: AppColors.statusDelivered)),
-              const SizedBox(width: 10),
-              Expanded(child: _StatBox(label: 'Plafond fictif', value: '${client.plafondFake.toStringAsFixed(0)} DH', color: AppColors.accentGold)),
+              Expanded(child: _StatBox(
+                  label: 'Plafond',
+                  value: '${client.plafond.toStringAsFixed(0)} DH',
+                  color: AppColors.accent)),
+              const SizedBox(width: 8),
+              Expanded(child: _StatBox(
+                  label: 'Solde disponible',
+                  value: '${client.plafondDisponible.toStringAsFixed(0)} DH',
+                  color: AppColors.statusDelivered)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _StatBox(
+                  label: 'Engagé (commandes)',
+                  value: '${client.plafondFake.toStringAsFixed(0)} DH',
+                  color: ((client.plafond - client.plafondDisponible) <= 0) ? AppColors.error : AppColors.accentOrange)),
+              const SizedBox(width: 8),
+              Expanded(child: _StatBox(
+                  label: 'Budget restant',
+                  value: '${(client.plafond - client.plafondDisponible).toStringAsFixed(0)} DH',
+                  color: (client.plafond - client.plafondDisponible) <= 0 ? AppColors.error : AppColors.accentGold)),
             ],
           ),
           const SizedBox(height: 20),
@@ -426,7 +446,7 @@ class _ClientFormSheetState extends ConsumerState<_ClientFormSheet> {
   late final TextEditingController _contactName;
   late final TextEditingController _contactPhone;
   late final TextEditingController _plafond;
-  late final TextEditingController _plafondFake;
+  late final TextEditingController _plafondDisponible;
   bool _loading = false;
 
   bool get isEditing => widget.existing != null;
@@ -444,13 +464,13 @@ class _ClientFormSheetState extends ConsumerState<_ClientFormSheet> {
     _contactName = TextEditingController(text: c?.contactName ?? '');
     _contactPhone= TextEditingController(text: c?.contactPhone ?? '');
     _plafond     = TextEditingController(text: c?.plafond.toStringAsFixed(0) ?? '0');
-    _plafondFake = TextEditingController(text: c?.plafondFake.toStringAsFixed(0) ?? '0');
+    _plafondDisponible = TextEditingController(text: c?.plafondFake.toStringAsFixed(0) ?? '0');
   }
 
   @override
   void dispose() {
     for (final ctrl in [_firstName, _name, _phone, _company, _address,
-      _managerName, _contactName, _contactPhone, _plafond, _plafondFake]) {
+      _managerName, _contactName, _contactPhone, _plafond, _plafondDisponible]) {
       ctrl.dispose();
     }
     super.dispose();
@@ -461,7 +481,8 @@ class _ClientFormSheetState extends ConsumerState<_ClientFormSheet> {
     setState(() => _loading = true);
     try {
       final plafondVal = double.tryParse(_plafond.text) ?? 0;
-      final plafondFakeVal = double.tryParse(_plafondFake.text) ?? 0;
+      final plafondDisponibleVal = double.tryParse(_plafondDisponible.text) ?? 0;
+      // final plafondFakeVal = double.tryParse(_plafondFake.text) ?? 0;
 
       if (isEditing) {
         await ref.read(firestoreRepoProvider).updateClient(widget.existing!.id, {
@@ -474,7 +495,8 @@ class _ClientFormSheetState extends ConsumerState<_ClientFormSheet> {
           'contactName': _contactName.text.trim(),
           'contactPhone': _contactPhone.text.trim(),
           'plafond': plafondVal,
-          'plafondFake': plafondFakeVal,
+          'plafondFake': plafondDisponibleVal,
+          'plafondDisponible' : plafondDisponibleVal,
         });
       } else {
         final client = ClientModel(
@@ -488,8 +510,8 @@ class _ClientFormSheetState extends ConsumerState<_ClientFormSheet> {
           contactName: _contactName.text.trim(),
           contactPhone: _contactPhone.text.trim(),
           plafond: plafondVal,
-          plafondDisponible: plafondVal,
-          plafondFake: plafondFakeVal,
+          plafondDisponible: plafondDisponibleVal,
+          plafondFake: plafondDisponibleVal,
           isBlocked: false,
           isDeleted: false,
           chantiers: [],
@@ -557,7 +579,7 @@ class _ClientFormSheetState extends ConsumerState<_ClientFormSheet> {
               Row(children: [
                 Expanded(child: _Field(_plafond, 'Plafond (DH) *', Icons.credit_score_outlined, type: TextInputType.number, required: true)),
                 const SizedBox(width: 12),
-                Expanded(child: _Field(_plafondFake, 'Plafond fictif (DH)', Icons.show_chart_outlined, type: TextInputType.number)),
+                Expanded(child: _Field(_plafondDisponible, 'Plafond fictif (DH)', Icons.show_chart_outlined, type: TextInputType.number)),
               ]),
               const SizedBox(height: 28),
 
@@ -1201,28 +1223,38 @@ class _Badge extends StatelessWidget {
 class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String label;
-  const _InfoChip({required this.icon, required this.label});
+  final bool tappable;
+  const _InfoChip({required this.icon, required this.label, this.tappable = false});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppColors.primaryLight,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 13, color: AppColors.textMuted),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(label,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                  overflow: TextOverflow.ellipsis),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: tappable
+            ? AppColors.statusDelivered.withOpacity(0.08)
+            : AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(8),
+        border: tappable
+            ? Border.all(color: AppColors.statusDelivered.withOpacity(0.25))
+            : null,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13,
+              color: tappable ? AppColors.statusDelivered : AppColors.textMuted),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    color: tappable ? AppColors.statusDelivered : AppColors.textSecondary,
+                    decoration: tappable ? TextDecoration.underline : null,
+                    decorationColor: AppColors.statusDelivered),
+                overflow: TextOverflow.ellipsis),
+          ),
+        ],
       ),
     );
   }

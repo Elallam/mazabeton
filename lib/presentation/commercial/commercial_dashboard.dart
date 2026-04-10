@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +7,7 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/models/models.dart';
+import '../../data/repositories/firestore_repository.dart' show PlafondException;
 import '../shared/widgets/shared_widgets.dart';
 import '../shared/dialogs/order_detail_dialog.dart';
 
@@ -104,7 +106,7 @@ class _HeaderBand extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Bonjour, ${commercial.firstname} ',
+                    Text('Bonjour, ${commercial.firstname}',
                         style: Theme.of(context).textTheme.titleMedium)
                         .animate()
                         .fadeIn(duration: 400.ms),
@@ -726,6 +728,12 @@ class _UpdateOrderSheetState extends ConsumerState<_UpdateOrderSheet> {
   Future<void> _save() async {
     setState(() => _loading = true);
     try {
+      // Todo : check if the supplement is changed
+
+      // Todo : updated the requested quantity
+
+      // Todo : update the client solde when updating the qteLivre
+
       await ref.read(firestoreRepoProvider).updateOrder(
         widget.order.id,
         {
@@ -737,7 +745,29 @@ class _UpdateOrderSheetState extends ConsumerState<_UpdateOrderSheet> {
         widget.commercial.id,
         widget.commercial.fullName,
       );
+
       if (mounted) Navigator.pop(context);
+    } on PlafondException catch (e) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            backgroundColor: AppColors.card,
+            title: const Row(children: [
+              Icon(Icons.block, color: AppColors.error, size: 20),
+              SizedBox(width: 10),
+              Flexible(child: Text('Plafond dépassé')),
+            ]),
+            content: Text(e.message,
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK')),
+            ],
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -748,6 +778,7 @@ class _UpdateOrderSheetState extends ConsumerState<_UpdateOrderSheet> {
       if (mounted) setState(() => _loading = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -837,6 +868,7 @@ class _UpdateOrderSheetState extends ConsumerState<_UpdateOrderSheet> {
                 ctrl: _qteCtrl,
                 label: 'Qté livrée (ton)',
                 icon: Icons.local_shipping_outlined,
+                maxValue: widget.order.qteDemande + widget.order.supplement,
               ),
             ),
             const SizedBox(width: 16),
@@ -893,8 +925,10 @@ class _SheetField extends StatelessWidget {
   final TextEditingController ctrl;
   final String label;
   final IconData icon;
+  final double? maxValue;
 
-  const _SheetField({required this.ctrl, required this.label, required this.icon});
+
+  const _SheetField({required this.ctrl, required this.label, required this.icon, this.maxValue});
 
   @override
   Widget build(BuildContext context) {
@@ -906,12 +940,31 @@ class _SheetField extends StatelessWidget {
                 color: AppColors.textSecondary, fontSize: 12)),
         const SizedBox(height: 6),
         TextField(
+
           controller: ctrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
             prefixIcon: Icon(icon, size: 18),
             isDense: true,
           ),
+
+          inputFormatters: [
+            // Add the max value validator
+            if (maxValue != null)
+              TextInputFormatter.withFunction((oldValue, newValue) {
+                if (newValue.text.isEmpty) return newValue;
+
+                // Try to parse the input as a number
+                final double? value = double.tryParse(newValue.text);
+
+                // If it's a valid number and exceeds maxValue, reject the change
+                if (value != null && value > maxValue!) {
+                  return oldValue; // Reject the change
+                }
+
+                return newValue; // Accept the change
+              }),
+          ],
         ),
       ],
     );
