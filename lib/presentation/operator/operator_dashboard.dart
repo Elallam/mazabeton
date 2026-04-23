@@ -85,7 +85,7 @@ class OperatorDashboard extends ConsumerWidget {
                             label: 'Restant',
                             value: '${(totalQte - totalLivre).toStringAsFixed(1)} ton',
                             icon: Icons.hourglass_empty_outlined,
-                            color: AppColors.accentOrange,
+                            color: AppColors.accentLight,
                             animIndex: 3,
                           ),
                         ),

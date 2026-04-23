@@ -375,7 +375,7 @@ class _ClientDetailSheet extends ConsumerWidget {
               Expanded(child: _StatBox(
                   label: 'Engagé (commandes)',
                   value: '${client.plafondFake.toStringAsFixed(0)} DH',
-                  color: ((client.plafond - client.plafondDisponible) <= 0) ? AppColors.error : AppColors.accentOrange)),
+                  color: ((client.plafond - client.plafondDisponible) <= 0) ? AppColors.error : AppColors.accentLight)),
               const SizedBox(width: 8),
               Expanded(child: _StatBox(
                   label: 'Budget restant',

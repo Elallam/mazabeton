@@ -82,7 +82,7 @@ class HistoryScreen extends ConsumerWidget {
     pdf.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       build: (ctx) => [
-        pw.Header(level: 0, child: pw.Text('Historique des modifications — Mazabeton',
+        pw.Header(level: 0, child: pw.Text('Historique des modifications - Mazabeton',
             style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold))),
         pw.SizedBox(height: 16),
         ...history.map((h) => pw.Container(
@@ -105,7 +105,7 @@ class HistoryScreen extends ConsumerWidget {
               pw.SizedBox(height: 8),
               pw.Text('Modifications:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
               ...h.newData.entries.map((e) => pw.Text(
-                '  ${translate(e.key)}: ${h.oldData[e.key] ?? '-'} → ${e.value}',
+                '  ${translate(e.key)}:  ${e.key == 'deliveryDate' ? _formatDate(h.oldData[e.key]) : h.oldData[e.key] ?? '-'} -> ${e.key == 'deliveryDate'? _formatDate(e.value) : e.value}',
                 style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
               )),
             ],
@@ -169,14 +169,14 @@ class _HistoryCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.accentOrange.withOpacity(0.15),
+                    color: AppColors.accentLight.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                        color: AppColors.accentOrange.withOpacity(0.3)),
+                        color: AppColors.accentLight.withOpacity(0.3)),
                   ),
                   child: Text(
                     '${changes.length} modif.',
-                    style: const TextStyle(color: AppColors.accentOrange,
+                    style: const TextStyle(color: AppColors.accentLight,
                         fontSize: 11,
                         fontWeight: FontWeight.w600),
                   ),

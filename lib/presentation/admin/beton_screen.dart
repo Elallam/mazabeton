@@ -9,7 +9,7 @@ import '../shared/widgets/shared_widgets.dart';
 // Category color map
 const _categoryColors = {
   'Courant':     AppColors.accent,
-  'Spécial':     AppColors.accentOrange,
+  'Spécial':     AppColors.accentLight,
   'Haute Perf.': AppColors.accentGold,
   'Structurel':  AppColors.statusInProgress,
   'Léger':       AppColors.statusDelivered,

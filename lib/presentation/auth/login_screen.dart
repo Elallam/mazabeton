@@ -124,7 +124,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     width: 160,
                     height: 160,
                     decoration: BoxDecoration(
-                      color: AppColors.accentOrange,
+                      color: AppColors.accentLight,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: AppColors.accent.withOpacity(0.4), width: 1.5),
                     ),
@@ -153,7 +153,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             letterSpacing: 6,
             foreground: Paint()
               ..shader = const LinearGradient(
-                colors: [AppColors.accent, AppColors.accentOrange],
+                colors: [AppColors.accent, AppColors.accentLight],
               ).createShader(const Rect.fromLTWH(0, 0, 200, 50)),
           ),
         ).animate().fadeIn(delay: 400.ms, duration: 600.ms).slideY(begin: 0.3, end: 0),
@@ -263,7 +263,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: ElevatedButton(
                   onPressed: _loading ? null : _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accentOrange,
+                    backgroundColor: AppColors.accentLight,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: _loading

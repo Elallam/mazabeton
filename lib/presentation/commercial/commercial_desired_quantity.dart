@@ -67,7 +67,7 @@ class CommercialDesiredQuantity extends ConsumerWidget {
                         label: 'Restant',
                         value: '${remaining.toStringAsFixed(1)} ton',
                         icon: Icons.hourglass_bottom_outlined,
-                        color: AppColors.accentOrange,
+                        color: AppColors.accentLight,
                         animIndex: 3,
                       ),
                     ],

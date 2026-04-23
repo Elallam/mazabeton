@@ -2,45 +2,48 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppColors {
-  // Primary - concrete grey palette
-  static const Color primary = Color(0xFF1A1A2E);
-  static const Color primaryLight = Color(0xFF16213E);
-  static const Color accent = Color(0xFFE94560);
-  static const Color accentOrange = Color(0xFFFF6B35);
-  static const Color accentGold = Color(0xFFF5A623);
+  // Primary - Mazabeton navy blue palette (from logo)
+  static const Color primary = Color(0xFF0D1B3E);        // Deep navy background
+  static const Color primaryLight = Color(0xFF162550);   // Slightly lighter navy
+  static const Color accent = Color(0xFF1E4DB7);         // Mazabeton brand blue
+  static const Color accentLight = Color(0xFF2E62D9);    // Lighter blue for hover/focus
+  static const Color accentGold = Color(0xFFF5A623);     // Kept for warnings/highlights
 
-  // Surfaces
-  static const Color surface = Color(0xFF0F3460);
-  static const Color surfaceLight = Color(0xFF1A1A2E);
-  static const Color card = Color(0xFF162447);
-  static const Color cardHover = Color(0xFF1F4068);
+  // Concrete grey surfaces (from logo shield/banner)
+  static const Color surface = Color(0xFF1C2B4A);        // Navy-tinted surface
+  static const Color surfaceLight = Color(0xFF243257);   // Lighter navy surface
+  static const Color card = Color(0xFF162040);           // Card background
+  static const Color cardHover = Color(0xFF1E2E55);      // Card hover state
+
+  // Concrete grey tones (from logo body)
+  static const Color concrete = Color(0xFFB8BFC9);       // Logo concrete grey
+  static const Color concreteDark = Color(0xFF8A9099);   // Darker concrete
+  static const Color concreteMid = Color(0xFF6B7280);    // Mid concrete
 
   // Status
   static const Color success = Color(0xFF4CAF8D);
   static const Color warning = Color(0xFFFFB547);
-  static const Color error = Color(0xFFE94560);
+  static const Color error = Color(0xFFD93025);          // Stronger red
   static const Color info = Color(0xFF4FC3F7);
 
   // Text
-  static const Color textPrimary = Color(0xFFF0F0F0);
-  static const Color textSecondary = Color(0xFFB0BEC5);
-  static const Color textMuted = Color(0xFF607D8B);
+  static const Color textPrimary = Color(0xFFF0F2F5);    // Near-white
+  static const Color textSecondary = Color(0xFFB8BFC9);  // Concrete grey (from logo)
+  static const Color textMuted = Color(0xFF6B7A8D);
 
   // Divider
-  static const Color divider = Color(0xFF263238);
+  static const Color divider = Color(0xFF1E3060);
 
-  // Admin role color
-  static const Color adminColor = Color(0xFFE94560);
-  // Commercial role color
+  // Role colors
+  static const Color adminColor = Color(0xFF1E4DB7);     // Brand blue
   static const Color commercialColor = Color(0xFF4FC3F7);
-  // Operator role color
   static const Color operatorColor = Color(0xFF4CAF8D);
 
   // Order status colors
   static const Color statusPending = Color(0xFFFFB547);
-  static const Color statusInProgress = Color(0xFF4FC3F7);
+  static const Color statusInProgress = Color(0xFF1E4DB7); // Brand blue
   static const Color statusDelivered = Color(0xFF4CAF8D);
-  static const Color statusCanceled = Color(0xFFE94560);
+  static const Color statusCanceled = Color(0xFFD93025);
 }
 
 class AppTheme {
@@ -50,7 +53,7 @@ class AppTheme {
       brightness: Brightness.dark,
       colorScheme: const ColorScheme.dark(
         primary: AppColors.accent,
-        secondary: AppColors.accentOrange,
+        secondary: AppColors.accentLight,
         surface: AppColors.card,
         background: AppColors.primary,
         error: AppColors.error,

@@ -86,7 +86,7 @@ class OrderDetailDialog extends StatelessWidget {
                   child: _QuantityBox(
                     label: 'Supplément',
                     value: '${order.supplement} ton',
-                    color: AppColors.accentOrange,
+                    color: AppColors.accentLight,
                   ),
                 ),
               ],

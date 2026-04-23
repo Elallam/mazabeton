@@ -61,7 +61,7 @@ class DesiredQuantityScreen extends ConsumerWidget {
                       label: 'Reste à livrer',
                       value: '${(totalQte - totalLivre).toStringAsFixed(1)} ton',
                       icon: Icons.hourglass_empty_outlined,
-                      color: AppColors.accentOrange,
+                      color: AppColors.accentLight,
                       animIndex: 3,
                     ),
                   ],

@@ -160,7 +160,7 @@ class _HeaderBand extends ConsumerWidget {
                 child: _MiniStat(
                   label: 'Restant',
                   value: '${(totalQte - totalLivre).toStringAsFixed(1)} ton',
-                  color: AppColors.accentOrange,
+                  color: AppColors.accentLight,
                 ),
               ),
             ],
@@ -896,7 +896,7 @@ class _OrderDetailSheet extends StatelessWidget {
                                 label: 'Restant',
                                 value: '${remaining.toStringAsFixed(2)} t',
                                 valueColor: remaining > 0
-                                    ? AppColors.accentOrange
+                                    ? AppColors.accentLight
                                     : AppColors.statusDelivered,
                               ),
                             ),
@@ -928,7 +928,7 @@ class _OrderDetailSheet extends StatelessWidget {
                           _InfoTile(
                             label: 'Supplément',
                             value: '+ ${order.supplement.toStringAsFixed(2)} t',
-                            valueColor: AppColors.accentOrange,
+                            valueColor: AppColors.accentLight,
                           ),
                         ],
                       ],
@@ -987,7 +987,7 @@ class _OrderDetailSheet extends StatelessWidget {
                           _InfoRow(
                             label: 'Livraison prévue',
                             value: fmtDate.format(order.deliveryDate!),
-                            valueColor: AppColors.accentOrange,
+                            valueColor: AppColors.accentLight,
                           ),
                       ],
                     ),
