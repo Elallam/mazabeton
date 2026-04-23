@@ -110,19 +110,40 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildLogo() {
     return Column(
       children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            color: AppColors.accent.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.accent.withOpacity(0.4), width: 1.5),
-          ),
-          child: const Icon(
-            Icons.construction_rounded,
-            color: AppColors.accent,
-            size: 40,
-          ),
+        TweenAnimationBuilder(
+          tween: Tween<double>(begin: 0, end: 360),
+          duration: Duration(seconds: 20),
+          builder: (context, angle, child) {
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                // Spinning rectangle (border only)
+                Transform.rotate(
+                  angle: angle * (3.14159 / 180),
+                  child: Container(
+                    width: 160,
+                    height: 160,
+                    decoration: BoxDecoration(
+                      color: AppColors.accentOrange,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.accent.withOpacity(0.4), width: 1.5),
+                    ),
+                  ),
+                ),
+                // Static image that doesn't spin
+                Container(
+                  width: 160,
+                  height: 160,
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundImage: AssetImage("assets/icon/logo.png"),
+                    backgroundColor: Colors.black,
+                  ),
+                ),
+              ],
+            );
+          },
+          child: Container(),
         ).animate().scale(delay: 200.ms, duration: 600.ms, curve: Curves.elasticOut),
         const SizedBox(height: 20),
         Text(
@@ -242,7 +263,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: ElevatedButton(
                   onPressed: _loading ? null : _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
+                    backgroundColor: AppColors.accentOrange,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: _loading

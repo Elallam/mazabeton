@@ -169,7 +169,7 @@ class _CreateOrderScreenState extends ConsumerState<CreateOrderScreen> {
         deliveryDate: _deliveryDateTime,
         qteDemande: _qte,
         qteLivre: 0,
-        soldPaid: false,
+        soldPaid: 0.0,
         status: _status,
         supplement: 0,
       );

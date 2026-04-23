@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/providers.dart';
@@ -579,7 +580,7 @@ class _ClientFormSheetState extends ConsumerState<_ClientFormSheet> {
               Row(children: [
                 Expanded(child: _Field(_plafond, 'Plafond (DH) *', Icons.credit_score_outlined, type: TextInputType.number, required: true)),
                 const SizedBox(width: 12),
-                Expanded(child: _Field(_plafondDisponible, 'Plafond fictif (DH)', Icons.show_chart_outlined, type: TextInputType.number)),
+                Expanded(child: _Field(_plafondDisponible, 'Solde (DH)', Icons.show_chart_outlined, type: TextInputType.number)),
               ]),
               const SizedBox(height: 28),
 
@@ -1186,7 +1187,7 @@ class _PlafondSheetState extends ConsumerState<_PlafondSheet> {
           const SizedBox(height: 12),
           _Field(_disponible, 'Plafond disponible (DH)', Icons.account_balance_wallet_outlined, type: TextInputType.number),
           const SizedBox(height: 12),
-          _Field(_fake, 'Plafond fictif (DH)', Icons.show_chart_outlined, type: TextInputType.number),
+          _Field(_fake, 'Solde (DH)', Icons.show_chart_outlined, type: TextInputType.number),
           const SizedBox(height: 24),
           SizedBox(
             height: 52,
@@ -1346,11 +1347,54 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPhone = type == TextInputType.phone;
+
     return TextFormField(
       controller: ctrl,
       keyboardType: type,
+      inputFormatters: isPhone ? [_MoroccoPhoneFormatter()] : null,
       decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
-      validator: required ? (v) => v == null || v.isEmpty ? 'Requis' : null : null,
+      validator: required
+          ? (v) => v == null || v.isEmpty ? 'Requis' : null
+          : isPhone
+          ? (v) {
+        if (v == null || v.isEmpty) return null;
+        // Must have 9 local digits after +212
+        final digits = v.replaceAll(RegExp(r'[^\d]'), '');
+        if (digits.length != 12) return 'Numéro invalide (+212 XXXXXXXXX)';
+        return null;
+      }
+          : null,
+    );
+  }
+}
+
+class _MoroccoPhoneFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue,
+      TextEditingValue newValue,
+      ) {
+    String digits = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+
+    // Strip leading 212 or 0 to get the local number
+    if (digits.startsWith('212')) digits = digits.substring(3);
+    if (digits.startsWith('0')) digits = digits.substring(1);
+
+    // Limit to 9 digits (Moroccan local number)
+    if (digits.length > 9) digits = digits.substring(0, 9);
+
+    // Format: +212 6XX-XXX-XXX
+    final buffer = StringBuffer('+212 ');
+    for (int i = 0; i < digits.length; i++) {
+      if (i == 3 || i == 6) buffer.write('-');
+      buffer.write(digits[i]);
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

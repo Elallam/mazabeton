@@ -41,48 +41,46 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDzDm3VZLC9l9M6AmqCGBkUOucYiUQBVt8',
-    appId: '1:969191232674:web:2cb5ff52666c52f4e4b3fb',
-    messagingSenderId: '969191232674',
-    projectId: 'mazabeton-2fefb',
-    authDomain: 'mazabeton-2fefb.firebaseapp.com',
-    storageBucket: 'mazabeton-2fefb.firebasestorage.app',
-    measurementId: 'G-K4YNP6ZWV8',
+    apiKey: 'AIzaSyA6_Ka2gm7wfv2egRh72SniA6n3YYwsCI4',
+    appId: '1:851444923512:web:bb95cfa679f1c52fe8c18d',
+    messagingSenderId: '851444923512',
+    projectId: 'mazabeton-final-a6b1f',
+    authDomain: 'mazabeton-final-a6b1f.firebaseapp.com',
+    storageBucket: 'mazabeton-final-a6b1f.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAmAKBReAqpkmrsnEyVbEl4jYRz9gyR9U8',
-    appId: '1:969191232674:android:492be723243ef20be4b3fb',
-    messagingSenderId: '969191232674',
-    projectId: 'mazabeton-2fefb',
-    storageBucket: 'mazabeton-2fefb.firebasestorage.app',
+    apiKey: 'AIzaSyCgsxjUqOc-hWRuREomvWLWIy6GT_D_5c0',
+    appId: '1:851444923512:android:431e4b2dafc77b44e8c18d',
+    messagingSenderId: '851444923512',
+    projectId: 'mazabeton-final-a6b1f',
+    storageBucket: 'mazabeton-final-a6b1f.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAliPR1QLab8XZmrzhNSUJ7-kEBc8JtxfU',
-    appId: '1:969191232674:ios:923c26e3e6e72367e4b3fb',
-    messagingSenderId: '969191232674',
-    projectId: 'mazabeton-2fefb',
-    storageBucket: 'mazabeton-2fefb.firebasestorage.app',
+    apiKey: 'AIzaSyDEFvV6j33JyO2sr1N_pMPSOqVQd31ZLJo',
+    appId: '1:851444923512:ios:e011371af9ddc9ffe8c18d',
+    messagingSenderId: '851444923512',
+    projectId: 'mazabeton-final-a6b1f',
+    storageBucket: 'mazabeton-final-a6b1f.firebasestorage.app',
     iosBundleId: 'com.example.mazabeton',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyAliPR1QLab8XZmrzhNSUJ7-kEBc8JtxfU',
-    appId: '1:969191232674:ios:923c26e3e6e72367e4b3fb',
-    messagingSenderId: '969191232674',
-    projectId: 'mazabeton-2fefb',
-    storageBucket: 'mazabeton-2fefb.firebasestorage.app',
+    apiKey: 'AIzaSyDEFvV6j33JyO2sr1N_pMPSOqVQd31ZLJo',
+    appId: '1:851444923512:ios:e011371af9ddc9ffe8c18d',
+    messagingSenderId: '851444923512',
+    projectId: 'mazabeton-final-a6b1f',
+    storageBucket: 'mazabeton-final-a6b1f.firebasestorage.app',
     iosBundleId: 'com.example.mazabeton',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyDzDm3VZLC9l9M6AmqCGBkUOucYiUQBVt8',
-    appId: '1:969191232674:web:13438e0391fa6004e4b3fb',
-    messagingSenderId: '969191232674',
-    projectId: 'mazabeton-2fefb',
-    authDomain: 'mazabeton-2fefb.firebaseapp.com',
-    storageBucket: 'mazabeton-2fefb.firebasestorage.app',
-    measurementId: 'G-BCCRW75VN6',
+    apiKey: 'AIzaSyA6_Ka2gm7wfv2egRh72SniA6n3YYwsCI4',
+    appId: '1:851444923512:web:afaac9e69003431ce8c18d',
+    messagingSenderId: '851444923512',
+    projectId: 'mazabeton-final-a6b1f',
+    authDomain: 'mazabeton-final-a6b1f.firebaseapp.com',
+    storageBucket: 'mazabeton-final-a6b1f.firebasestorage.app',
   );
 }

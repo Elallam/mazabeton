@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "969191232674",
-    "project_id": "mazabeton-2fefb",
-    "storage_bucket": "mazabeton-2fefb.firebasestorage.app"
+    "project_number": "851444923512",
+    "project_id": "mazabeton-final-a6b1f",
+    "storage_bucket": "mazabeton-final-a6b1f.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:969191232674:android:492be723243ef20be4b3fb",
+        "mobilesdk_app_id": "1:851444923512:android:431e4b2dafc77b44e8c18d",
         "android_client_info": {
           "package_name": "com.example.mazabeton"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAmAKBReAqpkmrsnEyVbEl4jYRz9gyR9U8"
+          "current_key": "AIzaSyCgsxjUqOc-hWRuREomvWLWIy6GT_D_5c0"
         }
       ],
       "services": {

@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -336,86 +338,200 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen>
   // ── Pickers ──────────────────────────────────────────────────────────────
 
   void _pickClient(List<ClientModel> clients) {
+    String query = '';
+    var filtered = clients
+        .where((c) => c.fullName.toLowerCase().contains(query.toLowerCase()))
+        .toList();
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.card,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.5,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (_, scroll) => Column(
-          children: [
-            const SizedBox(height: 12),
-            Container(width: 40, height: 4,
-                decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 12),
-            const Text('Filtrer par client',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-            const SizedBox(height: 8),
-            Expanded(
-              child: ListView(
-                controller: scroll,
-                children: clients.map((c) => ListTile(
-                  leading: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppColors.accent.withOpacity(0.15),
-                    child: Text(c.firstName.isNotEmpty ? c.firstName[0].toUpperCase() : '?',
-                        style: const TextStyle(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.w700)),
+      builder: (_) => StatefulBuilder(
+        builder: (context, setState) {
+
+
+          return DraggableScrollableSheet(
+            initialChildSize: 0.5,
+            maxChildSize: 0.9,
+            expand: false,
+            builder: (_, scroll) => Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+                const SizedBox(height: 12),
+                const Text('Filtrer par client',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Rechercher un client...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      filled: true,
+                      fillColor: AppColors.card,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (v) => setState(()  {
+                      query = v;
+                      filtered = clients
+                          .where((c) => c.fullName.toLowerCase().contains(query.toLowerCase()))
+                          .toList();
+                    }),
                   ),
-                  title: Text(c.fullName, style: const TextStyle(fontSize: 14)),
-                  subtitle: Text(c.company, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                  onTap: () {
-                    ref.read(orderFilterProvider.notifier).update(
-                      ref.read(orderFilterProvider).copyWith(
-                          clientName: c.id,
-                          clearChantier: true,
-                          clearBeton: true),
-                    );
-                    Navigator.pop(context);
-                  },
-                )).toList(),
-              ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: filtered.isEmpty
+                      ? const Center(
+                    child: Text('Aucun client trouvé',
+                        style: TextStyle(color: AppColors.textMuted)),
+                  )
+                      : ListView(
+                    controller: scroll,
+                    children: filtered.map((c) => ListTile(
+                      leading: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: AppColors.accent.withOpacity(0.15),
+                        child: Text(
+                          c.firstName.isNotEmpty ? c.firstName[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                              color: AppColors.accent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      title: Text(c.fullName,
+                          style: const TextStyle(fontSize: 14)),
+                      subtitle: Text(c.company,
+                          style: const TextStyle(
+                              color: AppColors.textMuted, fontSize: 12)),
+                      onTap: () {
+                        ref.read(orderFilterProvider.notifier).update(
+                          ref.read(orderFilterProvider).copyWith(
+                              clientName: c.id,
+                              clearChantier: true,
+                              clearBeton: true),
+                        );
+                        Navigator.pop(context);
+                      },
+                    )).toList(),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
   void _pickCommercial(List<CommercialModel> staff) {
+    final commercials = staff.where((s) => s.role == 'commercial').toList();
+    String query = '';
+    var filtered = List<CommercialModel>.from(commercials);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.card,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(width: 40, height: 4,
-              decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 12),
-          const Text('Filtrer par commercial',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-          const SizedBox(height: 8),
-          ...staff.where((s) => s.role == 'commercial').map((s) => ListTile(
-            title: Text(s.fullName),
-            onTap: () {
-              ref.read(orderFilterProvider.notifier).update(
-                ref.read(orderFilterProvider).copyWith(commercialName: s.id),
-              );
-              Navigator.pop(context);
-            },
-          )),
-          const SizedBox(height: 16),
-        ],
+      builder: (_) => StatefulBuilder(
+        builder: (context, setState) {
+          return DraggableScrollableSheet(
+            initialChildSize: 0.4,
+            maxChildSize: 0.9,
+            expand: false,
+            builder: (_, scroll) => Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+                const SizedBox(height: 12),
+                const Text('Filtrer par commercial',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Rechercher un commercial...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      filled: true,
+                      fillColor: AppColors.card,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (v) => setState(() {
+                      query = v;
+                      filtered = commercials
+                          .where((s) => s.fullName.toLowerCase().contains(query.toLowerCase()))
+                          .toList();
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: filtered.isEmpty
+                      ? const Center(
+                    child: Text('Aucun commercial trouvé',
+                        style: TextStyle(color: AppColors.textMuted)),
+                  )
+                      : ListView(
+                    controller: scroll,
+                    children: filtered.map((s) => ListTile(
+                      leading: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: AppColors.accent.withOpacity(0.15),
+                        child: Text(
+                          s.fullName.isNotEmpty ? s.fullName[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                              color: AppColors.accent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      title: Text(s.fullName,
+                          style: const TextStyle(fontSize: 14)),
+                      onTap: () {
+                        ref.read(orderFilterProvider.notifier).update(
+                          ref.read(orderFilterProvider).copyWith(
+                              commercialName: s.id),
+                        );
+                        Navigator.pop(context);
+                      },
+                    )).toList(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
-
   Future<void> _pickDate({required bool isStart}) async {
     final picked = await showDatePicker(
       context: context,
@@ -492,7 +608,7 @@ class _OrderList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ordersAsync.when(
       loading: () => const AppLoading(),
-      error: (e, _) => Center(child: Text('Erreur: $e')),
+      error: (e, stackTrace) => Center(child: Text('Erreur: $e, StackTrace : $stackTrace')),
       data: (orders) {
         final filtered = _apply(orders);
         if (filtered.isEmpty) {

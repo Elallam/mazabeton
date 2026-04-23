@@ -56,7 +56,11 @@ class OrderDetailDialog extends StatelessWidget {
             _DetailRow(label: 'Chantier', value: order.chantier, icon: Icons.location_on_outlined),
             _DetailRow(label: 'Béton', value: order.beton, icon: Icons.inventory_2_outlined),
             _DetailRow(label: 'Prix béton', value: '${order.betonPrice} DH/ton', icon: Icons.price_change_outlined),
-            _DetailRow(label: 'Contact', value: '${order.contact} — ${order.contactPhone}', icon: Icons.contact_phone_outlined),
+            _DetailRow(label: 'Contact', value: order.contact, icon: Icons.contact_phone_outlined),
+            GestureDetector(
+                onTap: order.contactPhone.isNotEmpty ? () => callPhone(order.contactPhone) : null,
+                child: _InfoChip(icon: Icons.phone_outlined, label: order.contactPhone, tappable: order.contactPhone.isNotEmpty),
+              ),
             const SizedBox(height: 8),
             const Divider(),
             const SizedBox(height: 8),
@@ -175,3 +179,44 @@ class _QuantityBox extends StatelessWidget {
     );
   }
 }
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool tappable;
+  const _InfoChip({required this.icon, required this.label, this.tappable = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: tappable
+            ? AppColors.statusDelivered.withOpacity(0.08)
+            : AppColors.primaryLight,
+        borderRadius: BorderRadius.circular(8),
+        border: tappable
+            ? Border.all(color: AppColors.statusDelivered.withOpacity(0.25))
+            : null,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13,
+              color: tappable ? AppColors.statusDelivered : AppColors.textMuted),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    color: tappable ? AppColors.statusDelivered : AppColors.textSecondary,
+                    decoration: tappable ? TextDecoration.underline : null,
+                    decorationColor: AppColors.statusDelivered),
+                overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

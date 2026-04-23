@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -20,7 +22,7 @@ class HistoryScreen extends ConsumerWidget {
       body: SafeArea(
         child: historyAsync.when(
           loading: () => const AppLoading(),
-          error: (e, _) => Center(child: Text('Erreur: $e')),
+          // error: (e, _) => Center(child: Text('Erreur: $e')),
           data: (history) {
             if (history.isEmpty) {
               return const EmptyState(
@@ -62,7 +64,12 @@ class HistoryScreen extends ConsumerWidget {
                 ),
               ],
             );
-          },
+          }, error: (Object error, StackTrace stackTrace) {
+            if (kDebugMode) {
+              print('$error');
+            }
+            return Text('erreur : $error');
+        },
         ),
       ),
     );
@@ -98,7 +105,7 @@ class HistoryScreen extends ConsumerWidget {
               pw.SizedBox(height: 8),
               pw.Text('Modifications:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
               ...h.newData.entries.map((e) => pw.Text(
-                '  ${e.key}: ${h.oldData[e.key] ?? '-'} → ${e.value}',
+                '  ${translate(e.key)}: ${h.oldData[e.key] ?? '-'} → ${e.value}',
                 style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
               )),
             ],
@@ -107,12 +114,13 @@ class HistoryScreen extends ConsumerWidget {
       ],
     ));
 
-    await Printing.sharePdf(bytes: await pdf.save(), filename: 'mazabeton_logs.pdf');
+    await Printing.sharePdf(bytes: await pdf.save(), filename: 'Mazabeton_logs.pdf');
   }
 }
 
 class _HistoryCard extends StatelessWidget {
   final OrderHistoryModel entry;
+
   const _HistoryCard({required this.entry});
 
   @override
@@ -135,8 +143,11 @@ class _HistoryCard extends StatelessWidget {
                   radius: 18,
                   backgroundColor: AppColors.accent.withOpacity(0.15),
                   child: Text(
-                    entry.commercialName.isNotEmpty ? entry.commercialName[0].toUpperCase() : '?',
-                    style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 14),
+                    entry.commercialName.isNotEmpty ? entry.commercialName[0]
+                        .toUpperCase() : '?',
+                    style: const TextStyle(color: AppColors.accent,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -144,24 +155,30 @@ class _HistoryCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(entry.commercialName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      Text(entry.commercialName, style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 14)),
                       Text(
                         formatter.format(entry.modifiedAt),
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                        style: const TextStyle(
+                            color: AppColors.textMuted, fontSize: 11),
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: AppColors.accentOrange.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.accentOrange.withOpacity(0.3)),
+                    border: Border.all(
+                        color: AppColors.accentOrange.withOpacity(0.3)),
                   ),
                   child: Text(
                     '${changes.length} modif.',
-                    style: const TextStyle(color: AppColors.accentOrange, fontSize: 11, fontWeight: FontWeight.w600),
+                    style: const TextStyle(color: AppColors.accentOrange,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -170,56 +187,96 @@ class _HistoryCard extends StatelessWidget {
               const SizedBox(height: 12),
               const Divider(height: 1),
               const SizedBox(height: 12),
-              ...changes.map((e) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      margin: const EdgeInsets.only(top: 6),
-                      decoration: const BoxDecoration(
-                        color: AppColors.accent,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: RichText(
-                        text: TextSpan(
-                          style: const TextStyle(fontSize: 12),
-                          children: [
-                            TextSpan(
-                              text: '${e.key}: ',
-                              style: const TextStyle(color: AppColors.textSecondary),
-                            ),
-                            TextSpan(
-                              text: '${entry.oldData[e.key] ?? '-'}',
-                              style: const TextStyle(
-                                color: AppColors.statusCanceled,
-                                decoration: TextDecoration.lineThrough,
-                              ),
-                            ),
-                            const TextSpan(
-                              text: ' → ',
-                              style: TextStyle(color: AppColors.textMuted),
-                            ),
-                            TextSpan(
-                              text: '${e.value}',
-                              style: const TextStyle(color: AppColors.statusDelivered),
-                            ),
-                          ],
+              ...changes.map((e) =>
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: e.key!= 'betonId' ?  Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          margin: const EdgeInsets.only(top: 6),
+                          decoration: const BoxDecoration(
+                            color: AppColors.accent,
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              )),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: RichText(
+                            text: TextSpan(
+                              style: const TextStyle(fontSize: 12),
+                              children: [
+                                TextSpan(
+                                  text: '${translate(e.key)}: ',
+                                  style: const TextStyle(
+                                      color: AppColors.textSecondary),
+                                ),
+                                TextSpan(
+                                  text: e.key == 'deliveryDate'
+                                      ? _formatDate(entry.oldData[e.key])
+                                      : '${entry.oldData[e.key] ?? '-'}',
+                                  style: const TextStyle(
+                                    color: AppColors.statusCanceled,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                                const TextSpan(
+                                  text: ' → ',
+                                  style: TextStyle(color: AppColors.textMuted),
+                                ),
+                                TextSpan(
+                                  text:  e.key == 'deliveryDate'
+                                      ? _formatDate(e.value) : '${e.value}',
+                                  style: const TextStyle(
+                                      color: AppColors.statusDelivered),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ) : SizedBox(),
+                  )),
             ],
           ],
         ),
       ),
     );
+  }
+}
+
+  String _formatDate(dynamic timestamp) {
+    if (timestamp == null) return '-';
+
+    try {
+      // If it's a Firestore Timestamp
+      if (timestamp is Timestamp) {
+        final date = timestamp.toDate();
+        return DateFormat('dd/mm/yyyy').format(date); // or any format you prefer
+      }
+      // If it's a DateTime object
+      else if (timestamp is DateTime) {
+        return DateFormat('dd/mm/yyyy').format(timestamp);
+      }
+      // If it's a string
+      else if (timestamp is String) {
+        return timestamp;
+      }
+    } catch (e) {
+      return timestamp.toString();
+    }
+
+    return '-';
+  }
+
+  String translate(key){
+   switch(key) {
+     case 'deliveryDate' : return 'Date de Livraison'; break;
+     case 'qteDemande' : return 'Quantité Demandée'; break;
+     case 'beton' : return 'Béton'; break;
+     case 'betonPrice' : return 'Prix de Béton'; break;
+     default : return key;
   }
 }

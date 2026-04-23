@@ -15,13 +15,13 @@ class AppConstants {
   // Roles
   static const String roleAdmin = 'admin';
   static const String roleCommercial = 'commercial';
-  static const String roleOperator = 'operator';
+  static const String roleOperator = 'opérateur';
 
   // Order statuses
   static const String statusPending = 'pending';
-  static const String statusInProgress = 'in_progress';
-  static const String statusDelivered = 'delivered';
-  static const String statusCanceled = 'canceled';
+  static const String statusInProgress = 'en cours';
+  static const String statusDelivered = 'livrée';
+  static const String statusCanceled = 'annulée';
 
   // Admin credentials
   static const String adminEmail = 'admin@mazabeton.com';

@@ -26,7 +26,7 @@ class PlafondException implements Exception {
 class FirestoreRepository {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // ─── Clients ────────────────────────────────────────────────────────────────
+  // ─── Clients ──────────────────────────────────────────────────────────
 
   Stream<List<ClientModel>> watchClients() {
     return _db
@@ -184,7 +184,6 @@ class FirestoreRepository {
   Stream<List<OrderModel>> watchOrdersForCommercial(String commercialId) {
     return _db
         .collection(AppConstants.ordersCollection)
-        .where('commercialId', isEqualTo: commercialId)
         .where('status', whereIn: [AppConstants.statusPending, AppConstants.statusInProgress])
         .orderBy('createdAt', descending: true)
         .snapshots()
@@ -469,10 +468,24 @@ class FirestoreRepository {
         .map((s) => s.docs.map((d) => OrderHistoryModel.fromMap(d.data(), d.id)).toList());
   }
 
+  DateTime getTwoMonthsAgo() {
+    final now = DateTime.now();
+    final twoMonthsAgo = DateTime(now.year, now.month - 2, now.day);
+
+    // Handle cases where the date might be invalid (e.g., March 31 - 2 months = Jan 31 is valid)
+    // Or if we go to previous year
+    if (now.month < 3) {
+      return DateTime(now.year - 1, now.month + 10, now.day);
+    }
+
+    return twoMonthsAgo;
+  }
+
   Stream<List<OrderHistoryModel>> watchAllHistory() {
     return _db
         .collectionGroup(AppConstants.orderHistoryCollection)
-        .orderBy('modifiedAt', descending: true)
+        .orderBy('updatedAt', descending: true)
+        .where('updatedAt', isGreaterThanOrEqualTo: getTwoMonthsAgo())
         .snapshots()
         .map((s) => s.docs.map((d) => OrderHistoryModel.fromMap(d.data(), d.id)).toList());
   }
@@ -483,7 +496,28 @@ class FirestoreRepository {
     return _db
         .collection(AppConstants.commercialsCollection)
         .snapshots()
-        .map((s) => s.docs.map((d) => CommercialModel.fromMap(d.data(), d.id)).toList());
+        .asyncMap((commercialSnapshot) async {
+      final List<CommercialModel> commercials = [];
+
+      for (final doc in commercialSnapshot.docs) {
+        final commercial = CommercialModel.fromMap(doc.data(), doc.id);
+
+        // Fetch staff roles from users collection
+        final staffQuery = await _db
+            .collection('users')
+            .where('id', isEqualTo: doc.id)
+            .get();
+
+        if (staffQuery.docs.isNotEmpty) {
+          final staffData = staffQuery.docs.first.data();
+          commercial.role = staffData['role'] as String?; // Assign role to commercial
+        }
+
+        commercials.add(commercial);
+      }
+
+      return commercials;
+    });
   }
 
   Future<CommercialModel?> getCommercial(String id) async {

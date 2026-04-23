@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:mazabeton/core/constants/app_constants.dart';
 
 // ─── User Model ───────────────────────────────────────────────────────────────
 class UserModel {
@@ -23,10 +24,10 @@ class CommercialModel {
   final String email;
   final String phone;
   final String address;
-  final String role; // 'commercial' or 'operator'
+  String? role; // 'commercial' or 'operator'
   final String password;
 
-  const CommercialModel({
+  CommercialModel({
     required this.id,
     required this.firstname,
     required this.name,
@@ -231,7 +232,7 @@ class OrderModel {
   final DateTime? deliveryDate;
   final double qteDemande;
   final double qteLivre;
-  final bool soldPaid;
+  final double soldPaid;
   final String status;
   final double supplement;
 
@@ -271,7 +272,7 @@ class OrderModel {
       deliveryDate: (map['deliveryDate'] as Timestamp?)?.toDate(),
       qteDemande: (map['qteDemande'] ?? 0).toDouble(),
       qteLivre: (map['qteLivre'] ?? 0).toDouble(),
-      soldPaid: map['soldPaid'] ?? false,
+      soldPaid: (map['soldPaid'] ?? 0).toDouble(),
       status: map['status'] ?? 'pending',
       supplement: (map['supplement'] ?? 0).toDouble(),
     );
@@ -296,8 +297,8 @@ class OrderModel {
     'supplement': supplement,
   };
 
-  bool get isActive => status == 'pending' || status == 'in_progress';
-  bool get isFinished => status == 'delivered' || status == 'canceled';
+  bool get isActive => status == AppConstants.statusPending || status == AppConstants.statusInProgress;
+  bool get isFinished => status == AppConstants.statusDelivered || status == AppConstants.statusCanceled;
   double get totalQuantity => qteDemande + supplement;
 }
 
@@ -332,7 +333,6 @@ class OrderHistoryModel {
   final String id;
   final Map<String, dynamic> oldData;
   final Map<String, dynamic> newData;
-  final String commercialId;
   final String commercialName;
   final DateTime modifiedAt;
 
@@ -340,7 +340,6 @@ class OrderHistoryModel {
     required this.id,
     required this.oldData,
     required this.newData,
-    required this.commercialId,
     required this.commercialName,
     required this.modifiedAt,
   });
@@ -349,17 +348,15 @@ class OrderHistoryModel {
     return OrderHistoryModel(
       id: id,
       oldData: Map<String, dynamic>.from(map['oldData'] ?? {}),
-      newData: Map<String, dynamic>.from(map['newData'] ?? {}),
-      commercialId: map['commercialId'] ?? '',
-      commercialName: map['commercialName'] ?? '',
-      modifiedAt: (map['modifiedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      newData: Map<String, dynamic>.from(map['updatedData'] ?? {}),
+      commercialName: map['updatedBy'] ?? '',
+      modifiedAt: (map['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
   Map<String, dynamic> toMap() => {
     'oldData': oldData,
     'newData': newData,
-    'commercialId': commercialId,
     'commercialName': commercialName,
     'modifiedAt': Timestamp.fromDate(modifiedAt),
   };
